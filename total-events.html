@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Total Events - TicketPortal</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+    <link rel="stylesheet" href="styles.css">
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+</head>
+<body>
+
+    <!-- Navbar -->
+    <nav class="navbar">
+        <h1>🎫 TicketPortal</h1>
+        <div class="nav-links">
+            <a href="index.html">Home</a>
+            <a href="total-events.html">Total Events</a>
+            <button class="theme-toggle" id="themeToggleBtn" onclick="toggleTheme()">
+                <i class="fas fa-moon"></i>
+            </button>
+        </div>
+    </nav>
+
+    <!-- Back Navigation -->
+    <div class="back-nav">
+        <a href="index.html" class="back-link"><i class="fas fa-arrow-left"></i> Back to Home</a>
+    </div>
+
+    <!-- Dashboard Title -->
+    <div class="dashboard-title">
+        <h1>ALL EVENTS</h1>
+        <p style="color: var(--subtext-color); font-size: 1rem; margin-top: 0.5rem;">Click on any event card or Details button to view full information</p>
+    </div>
+
+    <!-- Controls -->
+    <div class="controls">
+        <div class="search-wrapper">
+            <i class="fas fa-search search-icon"></i>
+            <input type="text" id="searchInput" placeholder="Search concerts, sports, arts...">
+        </div>
+
+        <button id="searchBtn">
+            <i class="fas fa-search"></i>
+            Search
+        </button>
+    </div>
+
+    <!-- Events Grid -->
+    <div class="container" id="eventsGrid">
+        <div class="card">
+            <h2>Loading events...</h2>
+        </div>
+    </div>
+
+    <script src="total-events.js"></script>
+</body>
+</html>
