@@ -3,6 +3,9 @@ const SUPABASE_ANON_KEY = 'sb_publishable_Olfff104V9bCod1UkTbwyA_VgMLB3IE';
 
 const _supabase = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
+let allEvents = [];
+let selectedFilter = "";
+
 function toggleTheme() {
     document.body.classList.toggle("light-mode");
 
@@ -40,6 +43,31 @@ function getSafeUrl(value) {
     }
 }
 
+function applySelectedFilter(events) {
+    if (selectedFilter === "broadcasted") {
+        return events.filter(event => event.event_status === "Broadcasted");
+    }
+
+    if (selectedFilter === "unbroadcasted") {
+        return events.filter(event => event.event_status === "Unbroadcasted");
+    }
+
+    if (selectedFilter === "upcoming") {
+        const now = new Date();
+        const threeDaysLater = new Date();
+        threeDaysLater.setDate(now.getDate() + 3);
+
+        return events.filter(event => {
+            if (!event.event_start_time) return false;
+
+            const eventDate = new Date(event.event_start_time);
+            return eventDate >= now && eventDate <= threeDaysLater;
+        });
+    }
+
+    return events;
+}
+
 async function fetchAllEvents() {
     const { data, error } = await _supabase
         .from("events")
@@ -56,31 +84,8 @@ async function fetchAllEvents() {
         return;
     }
 
-    const filter = new URLSearchParams(window.location.search).get("filter");
-    let filteredEvents = data || [];
-
-    if (filter === "broadcasted") {
-        filteredEvents = filteredEvents.filter(event =>
-            event.event_status === "Broadcasted"
-        );
-    } else if (filter === "unbroadcasted") {
-        filteredEvents = filteredEvents.filter(event =>
-            event.event_status === "Unbroadcasted"
-        );
-    } else if (filter === "upcoming") {
-        const now = new Date();
-        const threeDaysLater = new Date();
-        threeDaysLater.setDate(now.getDate() + 3);
-
-        filteredEvents = filteredEvents.filter(event => {
-            if (!event.event_start_time) return false;
-
-            const eventDate = new Date(event.event_start_time);
-            return eventDate >= now && eventDate <= threeDaysLater;
-        });
-    }
-
-    displayEvents(filteredEvents);
+    allEvents = data || [];
+    displayEvents(applySelectedFilter(allEvents));
 }
 
 function displayEvents(events) {
@@ -97,22 +102,25 @@ function displayEvents(events) {
 
     grid.innerHTML = "";
 
-    events.forEach(event => {
+    events.forEach(eventData => {
         const card = document.createElement("div");
         card.className = "card";
-        card.title = event.event_name || "View event details";
+        card.title = eventData.event_name || "View event details";
         card.setAttribute(
             "aria-label",
-            `View ${event.event_name || "event"} details`
+            `View ${eventData.event_name || "event"} details`
         );
 
-        const imageUrl = event.event_image_url ||
+        const imageUrl = eventData.event_image_url ||
             "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQmM8P5uvVCt-8ZlBmd2qmlJK-C7RpM07uW06KF_uMeKA&s=10";
 
         card.style.backgroundImage = `url('${imageUrl.replace(/'/g, "%27")}')`;
         card.style.cursor = "pointer";
 
-        const safeEventUrl = getSafeUrl(event.event_url);
+        const safeEventUrl = getSafeUrl(eventData.event_url);
+        const status = eventData.event_status || "Unbroadcasted";
+        const isBroadcasted = status === "Broadcasted";
+        const statusColor = isBroadcasted ? "#4CAF50" : "#ff4444";
 
         card.innerHTML = `
             <div style="
@@ -140,17 +148,17 @@ function displayEvents(events) {
                         font-weight: 700;
                         margin-bottom: 0.5rem;
                     ">
-                        ${escapeHTML(event.event_name || "N/A")}
+                        ${escapeHTML(eventData.event_name || "N/A")}
                     </div>
 
                     <div style="font-size: 0.85rem; margin-top: 0.25rem;">
                         <strong>Venue:</strong>
-                        ${escapeHTML(event.venue_name || "N/A")}
+                        ${escapeHTML(eventData.venue_name || "N/A")}
                     </div>
 
                     <div style="font-size: 0.85rem; margin-top: 0.25rem;">
                         <strong>Mapping ID:</strong>
-                        ${escapeHTML(event.event_mapping_id || "N/A")}
+                        ${escapeHTML(eventData.event_mapping_id || "N/A")}
                     </div>
 
                     <div style="font-size: 0.85rem; margin-top: 0.25rem;">
@@ -176,13 +184,22 @@ function displayEvents(events) {
                                 : "N/A"
                         }
                     </div>
+
+                    <div style="
+                        color: ${statusColor};
+                        font-size: 0.78rem;
+                        font-weight: 700;
+                        margin-top: 0.6rem;
+                    ">
+                        ● ${escapeHTML(status)}
+                    </div>
                 </div>
             </div>
         `;
 
         card.addEventListener("click", () => {
             window.location.href =
-                `event-details.html?id=${encodeURIComponent(event.id)}`;
+                `event-details.html?id=${encodeURIComponent(eventData.id)}`;
         });
 
         grid.appendChild(card);
@@ -196,11 +213,20 @@ function searchCards() {
         .trim()
         .toLowerCase();
 
-    document.querySelectorAll("#eventsGrid .card").forEach(card => {
-        card.style.display = card.title.toLowerCase().includes(searchTerm)
-            ? "flex"
-            : "none";
+    const filteredEvents = applySelectedFilter(allEvents).filter(eventData => {
+        const searchableText = [
+            eventData.event_name,
+            eventData.event_mapping_id,
+            eventData.event_url,
+            eventData.venue_name
+        ]
+            .map(value => String(value || "").toLowerCase())
+            .join(" ");
+
+        return searchableText.includes(searchTerm);
     });
+
+    displayEvents(filteredEvents);
 }
 
 document.addEventListener("DOMContentLoaded", () => {
@@ -211,7 +237,8 @@ document.addEventListener("DOMContentLoaded", () => {
         document.querySelector(".theme-toggle i").className = "fas fa-sun";
     }
 
-    const filter = new URLSearchParams(window.location.search).get("filter");
+    selectedFilter = new URLSearchParams(window.location.search).get("filter") || "";
+
     const titleEl = document.querySelector(".dashboard-title h1");
 
     const titles = {
@@ -222,7 +249,7 @@ document.addEventListener("DOMContentLoaded", () => {
     };
 
     if (titleEl) {
-        titleEl.textContent = titles[filter] || "ALL EVENTS";
+        titleEl.textContent = titles[selectedFilter] || "ALL EVENTS";
     }
 
     document
